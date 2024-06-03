@@ -65,7 +65,7 @@ status	lifsetup (
 	 * only through indirect blocks */
 	 if (lifptr->lifpos >= LIF_AREA_DIRECT) {
 		if (lifptr->lifpos < LIF_AREA_INDIR + LIF_AREA_DIRECT) {
-			// Allocate the singly indirect block
+			// allocate the singly indirect block
 			lifptr->lifindnum = ibptr->ind;
 			if (lifptr->lifindnum == LF_DNULL) {
 				lifptr->lifindnum = lifindballoc((struct lifdbfree *)&lifptr->lifindblock);
@@ -76,17 +76,18 @@ status	lifsetup (
 				read(Lif_data.lif_dskdev, (char *)lifptr->lifindblock, lifptr->lifindnum);
 				lifptr->lifindbdirty = FALSE;
 			}
-
+			// calculate the singly indirect block index
 			dbid32 indir_blk = ((lifptr->lifpos - LIF_AREA_DIRECT) & 0x0001ffff) >> 9;
 			dnumptr = &lifptr->lifindblock[indir_blk];
 			dnum = *dnumptr;
 
 			if (dnum == LIF_DNULL) {
+				// allocate the data block into the singly indirect block
 				lifptr->lifindblock[indir_blk] = lifdballoc((struct lifdbfree *)&lifptr->lifdblock);
 				dnum = lifptr->lifindblock[indir_blk];
 				*dnumptr = dnum;
 				lifptr->lifindbdirty = TRUE;
-			} else if (dnum != lifptr->lifdnum) { // read in the correct block if it hasn't been read into memory
+			} else if (dnum != lifptr->lifdnum) { // read in the correct data block if it hasn't been read into memory
 				read(Lif_data.lif_dskdev, (char *)lifptr->lifdblock, dnum);
 				lifptr->lifdbdirty = FALSE;
 			}
@@ -102,12 +103,12 @@ status	lifsetup (
 				ibptr->ind2 = lifptr->lif2indnum;
 				lifptr->lifibdirty = TRUE;
 			}
-			
+			// calculate the doubly indirect block index
 			dbid32 indir2_blk = (lifptr->lifpos - (LIF_AREA_DIRECT + LIF_AREA_INDIR)) / (LIF_BLKSIZ * LIF_NUM_ENT_PER_BLK);
 			dnumptr = &lifptr->lif2indblock[indir2_blk];
 			dnum = *dnumptr;
 
-			// Allocate the singly indirect block
+			// allocate the singly indirect block
 			if (dnum == LF_DNULL) {
 				lifptr->lif2indblock[indir2_blk] = lifindballoc((struct lifdbfree *)&lifptr->lifindblock);
 				lifptr->lifindnum = lifptr->lif2indblock[indir2_blk];
@@ -118,12 +119,14 @@ status	lifsetup (
 				read(Lif_data.lif_dskdev, (char *)lifptr->lifindblock, lifptr->lifindnum);
 				lifptr->lifindbdirty = FALSE;
 			}
-
+			
+			// calculate the singly indirect block index inside the doubly indirect block
 			dbid32 indir_blk = (((lifptr->lifpos - (LIF_AREA_INDIR + LIF_AREA_DIRECT)) & 0x0001ffff) >> 9) % LIF_NUM_ENT_PER_BLK;
 			dnumptr = &lifptr->lifindblock[indir_blk];
 			dnum = *dnumptr;
 
 			if (dnum == LIF_DNULL) {
+				// allocate the data block into the singly indirect block
 				lifptr->lifindblock[indir_blk] = lifdballoc((struct lifdbfree *)&lifptr->lifdblock);
 				dnum = lifptr->lifindblock[indir_blk];
 				*dnumptr = dnum;
